@@ -236,7 +236,7 @@ def train_plan(args, data, DNC, lstm_state, optimizer):
                 final_inputs = _variable(torch.cat([mask, pr], 1))
                 logits, dnc_state, lstm_state = DNC(final_inputs, lstm_state, dnc_state)
                 exp_logits = data.ix_input_to_ixs(logits)
-
+                # print("exp_logit: ", exp_logits)
                 guided = random.random() < args.beta
                 # thing 1
                 if guided: # guided loss

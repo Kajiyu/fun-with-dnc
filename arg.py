@@ -33,6 +33,11 @@ parser.add_argument('--n_cargo', type=int, default=2, help='number of cargo at s
 parser.add_argument('--n_plane', type=int, default=2, help='number of plane at starts')
 parser.add_argument('--n_airport', type=int, default=2, help='number of airports at starts')
 parser.add_argument('-n', '--n_init_start', type=int, default=2, help='number of entities to start with')
+parser.add_argument('--n_min_nodes', type=int, default=5, help='minimum number of nodes')
+parser.add_argument('--n_max_nodes', type=int, default=10, help='maximum number of nodes')
+parser.add_argument('--n_min_path', type=int, default=2, help='minimum number of path')
+parser.add_argument('--n_max_path', type=int, default=2, help='maximum number of path')
+parser.add_argument('--graph_json_path', type=str, default="./json/metro_training_data.json", help='json path of tokyo metro')
 parser.add_argument('--typed', type=int, default=1, help='1=use typed entity descriptions, 0=one hot each entity')
 
 ########### PROBLEM CONTROL ##############
@@ -70,7 +75,7 @@ if args.save != '':
 writer = None
 if args.log > 0:
     from tensorboardX import SummaryWriter
-    global writer
+    # global writer
     writer = SummaryWriter()
     from visualize import logger
     logger.log_step += args.log
