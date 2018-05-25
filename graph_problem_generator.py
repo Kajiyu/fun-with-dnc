@@ -74,6 +74,7 @@ class ShortestPathGraphData():
         for _t in nx_edges:
             out_vecs.append([_t[0], _t[1]])
             out_vecs.append([_t[1], _t[0]])
+        random.shuffle(out_vecs)
         return out_vecs
 
 

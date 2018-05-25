@@ -6,10 +6,10 @@ parser.add_argument('-a', '--act', nargs='?', type=str, default='train', help='[
 parser.add_argument('-l', '--load', nargs='?', type=str, default='', help='load model and state')
 parser.add_argument('--start_epoch', nargs='?', type=int, default=0, help='load model and state checkpt start')
 parser.add_argument('-s', '--save', nargs='?', type=str, default='', help='save if true')
-parser.add_argument('-i', '--iters', nargs='?', type=int, default=21, help='number of iterations')
+parser.add_argument('-i', '--iters', nargs='?', type=int, default=1000, help='number of iterations')
 parser.add_argument('--env', type=str, default='', help='')
 parser.add_argument('--lr', type=float, default=1e-5, help='learning rate 1e-5 in paper')
-parser.add_argument('--checkpoint_every', type=int, default=5, help='save models every n epochs')
+parser.add_argument('--checkpoint_every', type=int, default=3, help='save models every n epochs')
 parser.add_argument('--log', type=int, default=0, help='send to tensorboard frequency. 0 to disable')
 parser.add_argument('--notes', type=str, default='', help='any notes')
 parser.add_argument('-d', '--show_details', type=int, default=20, help='any notes')
@@ -28,7 +28,7 @@ parser.add_argument('--ret_graph', type=int, default=1, help='retain graph todo 
 parser.add_argument('--rpkg_step', type=int, default=1, help='repackage input vars at each step')
 
 ########### PROBLEM SETUP ##############
-parser.add_argument('-p', '--n_phases', type=int, default=15, help='number of training phases')
+parser.add_argument('-p', '--n_phases', type=int, default=100, help='number of training phases')
 parser.add_argument('--n_cargo', type=int, default=2, help='number of cargo at starts')
 parser.add_argument('--n_plane', type=int, default=2, help='number of plane at starts')
 parser.add_argument('--n_airport', type=int, default=2, help='number of airports at starts')

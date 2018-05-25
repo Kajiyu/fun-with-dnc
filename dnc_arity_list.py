@@ -762,5 +762,5 @@ def require_nonleaf_grad(v):
     v.register_hook(hook)
 
 
-if __name__ == "__main__":
-    print("x")
+# if __name__ == "__main__":
+#     print("x")

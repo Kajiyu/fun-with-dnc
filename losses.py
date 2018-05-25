@@ -88,8 +88,8 @@ def action_loss_for_shortest_path(logits, action, current_state, criterion, log=
             tgt = _variable(torch.LongTensor([action_part]))
             # print("logits: ", logits[idx])
             # print("tgt: ", tgt)
-            if idx == 5:
-                print(logits[idx].data.numpy()[0].tolist())
+            # if idx == 5:
+                # print(logits[idx].data.numpy()[0].tolist())
             losses.append(criterion(logits[idx], tgt))
     loss = torch.stack(losses, 0).mean()
     if log is not None:

@@ -79,6 +79,8 @@ def train_shortest_path_plan(args, data, DNC, lstm_state, optimizer):
     penalty = 1.1
 
     for trial in range(args.iters):
+        if trial % 100 == 0:
+            ___score, ___goal_score = test_shortest_path_planning(args, data, DNC, lstm_state)
         start_prob = time.time()
         phase_masks = data.make_new_graph()
         print("Shortest Path :: ", data.shortest_path)
@@ -136,35 +138,7 @@ def train_shortest_path_plan(args, data, DNC, lstm_state, optimizer):
 
                 data.STATE = final_action
 
-                # if (trial + 1) % args.show_details == 0:
-                #     action_accs = u.human_readable_res(data, all_actions, actions_star,
-                #                                        action_own, guided, lstep.data[0])
-                #     stats.append(action_accs)
-                # n_total, _ = tick(n_total, n_correct, action_own, flat(final_action))
-                # n_correct += 1 if action_own in [tuple(flat(t)) for t in actions_star] else 0
-
                 prev_action = torch.from_numpy(np.array(data.vec_to_ix([current_state, final_action])).reshape((1, 61))).float()
-        
-        # if stats:
-        #     arr = np.array(stats)
-        #     correct = len([1 for i in list(arr.sum(axis=1)) if i == len(stats[0])]) / len(stats)
-        #     sl.log_acc(list(arr.mean(axis=0)), correct)
-
-        # if args.opt_at == 'problem':
-        #     floss = loss / n_total
-        #     floss.backward(retain_graph=args.ret_graph)
-        #     if args.clip:
-        #         torch.nn.utils.clip_grad_norm(DNC.parameters(), args.clip)
-        #     optimizer.step()
-        #     sl.writer.add_scalar('losses.end', floss.data[0], sl.global_step)
-        # n_success += 1 if n_correct / n_total > args.passing else 0
-        # cum_total.append(n_total)
-        # cum_correct.append(n_correct)
-        # sl.add_scalar('recall.pct_correct', n_correct / n_total, sl.global_step)
-        # print("trial {}, step {} trial accy: {}/{}, {:0.2f}, running total {}/{}, running avg {:0.4f}, loss {:0.4f}  ".format(
-        #     trial, sl.global_step, n_correct, n_total, n_correct / n_total, n_success, trial,
-        #     running_avg(cum_correct, cum_total), loss.data[0]
-        #     ))
 
         #### under experiment ####
         goal_loss = L.action_loss_for_shortest_path(exp_logits, data.goal, current_state, criterion, log=True)
@@ -178,6 +152,115 @@ def train_shortest_path_plan(args, data, DNC, lstm_state, optimizer):
     return DNC, optimizer, lstm_state, 0.  # running_avg(cum_correct, cum_total)
 
 
+def test_shortest_path_planning(args, data, DNC, lstm_state):
+    criterion = nn.CrossEntropyLoss().cuda() if args.cuda is True else nn.CrossEntropyLoss()
+    cum_correct, cum_total, prob_times, n_success = [], [], [], 0
+    action_score = 0
+    goal_score = 0
+    total_actions = 0
+    total_problems = 2
+    print("\n")
+    print("Accuracy Test is started ....")
+    output_dict = {}
+    for i in range(total_problems):
+        start_prob = time.time()
+        phase_masks = data.make_new_graph()
+        print("Shortest Path :: ", data.shortest_path)
+        n_total, n_correct, prev_action, loss, stats = 0, 0, None, 0, []
+        dnc_state = DNC.init_state(grad=False)
+        lstm_state = DNC.init_rnn(grad=False) # lstm_state, 
+
+        input_history = []
+        access_output_v=[]
+        m=[]
+        rw=[]
+        ww=[]
+        l=[]
+        lw=[]
+        uuu=[]
+
+        for phase_idx in phase_masks:
+
+            if phase_idx == 0 or phase_idx == 1:
+                inputs = _variable(data.getitem_combined())
+                logits, dnc_state, lstm_state = DNC(inputs, lstm_state, dnc_state)
+                _, prev_action = data.strip_ix_mask(logits)
+                input_history.append(inputs.data[0].numpy().tolist())
+                access_output_v.append(torch.squeeze(dnc_state[0].data).numpy().tolist())
+                m.append(torch.squeeze(dnc_state[1].data).numpy().tolist())
+                rw.append(torch.squeeze(dnc_state[2].data).numpy().tolist())
+                ww.append(torch.squeeze(dnc_state[3].data).numpy().tolist())
+                l.append(torch.squeeze(dnc_state[4].data).numpy().tolist())
+                lw.append(torch.squeeze(dnc_state[5].data).numpy().tolist())
+                uuu.append(torch.squeeze(dnc_state[6].data).numpy().tolist())
+
+            
+            elif phase_idx == 2:
+                mask = _variable(data.getmask())
+                inputs = torch.cat([mask, prev_action], 1)
+                logits, dnc_state, lstm_state = DNC(inputs, lstm_state, dnc_state)
+                _, prev_action = data.strip_ix_mask(logits)
+                input_history.append(inputs.data[0].numpy().tolist())
+                access_output_v.append(torch.squeeze(dnc_state[0].data).numpy().tolist())
+                m.append(torch.squeeze(dnc_state[1].data).numpy().tolist())
+                rw.append(torch.squeeze(dnc_state[2].data).numpy().tolist())
+                ww.append(torch.squeeze(dnc_state[3].data).numpy().tolist())
+                l.append(torch.squeeze(dnc_state[4].data).numpy().tolist())
+                lw.append(torch.squeeze(dnc_state[5].data).numpy().tolist())
+                uuu.append(torch.squeeze(dnc_state[6].data).numpy().tolist())
+            
+            else:
+                best_nodes, all_nodes = data.get_actions()
+                if not best_nodes:
+                    break
+                mask = data.getmask()
+                prev_action = prev_action.cuda() if args.cuda is True else prev_action
+                pr = u.depackage(prev_action)
+
+                final_inputs = _variable(torch.cat([mask, pr], 1))
+                logits, dnc_state, lstm_state = DNC(final_inputs, lstm_state, dnc_state)
+                input_history.append(final_inputs.data[0].numpy().tolist())
+                access_output_v.append(torch.squeeze(dnc_state[0].data).numpy().tolist())
+                m.append(torch.squeeze(dnc_state[1].data).numpy().tolist())
+                rw.append(torch.squeeze(dnc_state[2].data).numpy().tolist())
+                ww.append(torch.squeeze(dnc_state[3].data).numpy().tolist())
+                l.append(torch.squeeze(dnc_state[4].data).numpy().tolist())
+                lw.append(torch.squeeze(dnc_state[5].data).numpy().tolist())
+                uuu.append(torch.squeeze(dnc_state[6].data).numpy().tolist())
+                exp_logits = data.ix_input_to_ixs(logits)
+                current_state = data.STATE
+                guided = random.random() < args.beta
+                final_action, lstep = L.naive_loss_for_shortest_path(exp_logits, all_nodes, current_state, criterion, log=True)
+                print(str(data.current_index)+" index, from: "+str(current_state)+", to: "+str(final_action))
+                if final_action in best_nodes:
+                    action_score = action_score + 1
+                total_actions = total_actions + 1
+                action_own = u.get_prediction(exp_logits)
+                data.STATE = final_action
+                prev_action = torch.from_numpy(np.array(data.vec_to_ix([current_state, final_action])).reshape((1, 61))).float()
+        if data.goal == final_action:
+            goal_score = goal_score + 1
+        end_prob = time.time()
+        prob_times.append(start_prob - end_prob)
+        p_output_dict = {}
+        p_output_dict["inputs"] = input_history
+        p_output_dict["access_outputs"] = access_output_v
+        p_output_dict["m"] = m
+        p_output_dict["rw"] = rw
+        p_output_dict["ww"] = ww
+        p_output_dict["l"] = l
+        p_output_dict["lw"] = lw
+        p_output_dict["u"] = uuu
+        p_output_dict["phases"] = torch.squeeze(phase_masks).numpy().tolist()
+        output_dict[i] = p_output_dict
+    action_score = float(action_score) / float(total_actions)
+    goal_score = float(goal_score) / float(total_problems)
+    print("Accuracy Test is ended .... " + "action score: " + str(action_score) + ", goal score: " + str(goal_score))
+    print("\n")
+    with open("output.json", "w") as f:
+        json.dump(output_dict, f, ensure_ascii=False, indent=4, sort_keys=True, separators=(',', ': '))
+    return action_score, goal_score
+
 
 def train_manager(args, train_fn):
     datspec = generate_data_spec(args)
@@ -189,30 +272,56 @@ def train_manager(args, train_fn):
 
     for problem_size in range(10):
         data_spec = generate_data_spec(args)
+        data_spec["num_nodes"] = args.n_max_nodes + problem_size
         data = ShortestPathGraphData(**data_spec)
+        # score, goal_score = test_shortest_path_planning(args, data, DNC, lstm_state)
+        # print("Action Score", score)
+        # print("Goal Score", goal_score)
         for train_epoch in range(args.n_phases):
             ep_start = time.time()
             global_epoch += 1
             print("\nStarting Epoch {}".format(train_epoch))
-
+            # if train_epoch == 0 and args.save != '':
+            #     save(DNC, optimizer, lstm_state, args, 0)
             DNC, optimizer, lstm_state, score = train_fn(args, data, DNC, lstm_state, optimizer)
             if (train_epoch + 1) % args.checkpoint_every and args.save != '':
                 save(DNC, optimizer, lstm_state, args, global_epoch)
-            
+            score, goal_score = test_shortest_path_planning(args, data, DNC, lstm_state)
             ep_end = time.time()
             ttl_s = ep_end - ep_start
             print('finished epoch: {}, ttl-time: {:0.4f}'.format(
                 train_epoch, ttl_s
             ))
-            # print('finished epoch: {}, score: {}, ttl-time: {:0.4f}, time/prob: {:0.4f}'.format(
-            #     train_epoch, score, ttl_s, ttl_s / args.iters
-            # ))
-            # if score > args.passing:
-            #     print('model_successful: {}, {} '.format(score, train_epoch))
-            #     print('----------------------WOO!!--------------------------')
-            #     passing = True
-            #     break
+            print('finished epoch: {}, action score: {}, goal score: {}, ttl-time: {:0.4f}, time/prob: {:0.4f}'.format(
+                train_epoch, score, goal_score, ttl_s, ttl_s / args.iters
+            ))
+            if score > args.passing:
+                print('model_successful: {}, {} '.format(score, train_epoch))
+                print('----------------------WOO!!--------------------------')
+                passing = True
+                break
+        if score < args.passing:
+            print("Problem "+str(problem_size)+" Learning was failed ......")
+            return
+
+
+def test_manager(args, test_fn):
+    datspec = generate_data_spec(args)
+    print('\nInitial Spec', datspec)
+    _, DNC, optimizer, lstm_state = setupDNC(args)
+    start_ents, score, global_epoch = args.n_init_start, 0, args.start_epoch
+    print('\nDnc structure', DNC)
+    data_spec = generate_data_spec(args)
+    data_spec["num_nodes"] = args.n_max_nodes
+    data = ShortestPathGraphData(**data_spec)
+    score, goal_score = test_shortest_path_planning(args, data, DNC, lstm_state)
+    print("Action Score", score)
+    print("Goal Score", goal_score)
 
 
 if __name__== "__main__":
-    train_manager(args, train_shortest_path_plan)
+    trainable_flag = False
+    if trainable_flag:
+        train_manager(args, train_shortest_path_plan)
+    else:
+        test_manager(args, test_shortest_path_planning)
