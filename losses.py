@@ -12,8 +12,12 @@ def action_loss(logits, action, criterion, log=None):
         :return:
         """
     losses = []
+    # print("flat action ::: ", flat(action))
     for idx, action_part in enumerate(flat(action)):
         tgt = _variable(torch.LongTensor([action_part]))
+        # print("tgt: ", tgt)
+        # print("logits[idx]: ", logits[idx])
+        # print("critation: ", criterion(logits[idx], tgt))
         losses.append(criterion(logits[idx], tgt))
     loss = torch.stack(losses, 0).mean()
     if log is not None:
@@ -72,4 +76,28 @@ def naive_loss(logits, targets, criterion, log=None):
     return final_action, action_loss(logits, final_action, criterion, log=log)
 
 
+def action_loss_for_shortest_path(logits, action, current_state, criterion, log=None):
+    from_e = "{0:03d}".format(current_state)
+    to_e = "{0:03d}".format(action)
+    a_str = from_e + to_e
+    a_char_list = list(a_str)
+    a_list = [int(_a_char) for _a_char in a_char_list]
+    losses = []
+    for idx, action_part in enumerate(a_list):
+        if idx > 2:
+            tgt = _variable(torch.LongTensor([action_part]))
+            # print("logits: ", logits[idx])
+            # print("tgt: ", tgt)
+            # if idx == 5:
+                # print(logits[idx].data.numpy()[0].tolist())
+            losses.append(criterion(logits[idx], tgt))
+    loss = torch.stack(losses, 0).mean()
+    if log is not None:
+        sl.log_loss(losses, loss)
+    return loss
 
+
+def naive_loss_for_shortest_path(logits, targets, current_state, criterion, log=None):
+    loss_idx, _ = min(enumerate([action_loss_for_shortest_path(repackage(logits), a, current_state, criterion) for a in targets]))
+    final_action = targets[loss_idx]
+    return final_action, action_loss_for_shortest_path(logits, final_action, current_state, criterion, log=log)

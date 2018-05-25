@@ -664,6 +664,7 @@ class DNC(nn.Module):
                  memory_size=100,
                  word_len=6,
                  output_size=None,
+                 input_size=None,
                  num_layers=2,
                  hidden_size=4,
                  num_read_heads=1,
@@ -678,12 +679,13 @@ class DNC(nn.Module):
         self.num_writes = 1 # default from paper - not messin widdit
         self.interface_size = num_read_heads * word_len + 3 * word_len + 5 * num_read_heads + 3
         self.output_size = output_size if output_size is not None else word_len
+        self.input_size = input_size if input_size is not None else self.output_size + word_len * num_read_heads
         self._interface = InterFace(word_size=word_len,
                                     num_reads=num_read_heads,
                                     intf_size=self.interface_size + word_len,
                                     write_heads=1)
         self.controller = Controller(word_size=word_len,
-                                     input_size=self.output_size + word_len * num_read_heads, # ok
+                                     input_size=self.input_size,  #self.output_size + word_len * num_read_heads, # ok
                                      num_reads=num_read_heads,
                                      hidden_size=hidden_size,
                                      num_layers=num_layers,
@@ -760,5 +762,5 @@ def require_nonleaf_grad(v):
     v.register_hook(hook)
 
 
-if __name__ == "__main__":
-    print("x")
+# if __name__ == "__main__":
+#     print("x")
